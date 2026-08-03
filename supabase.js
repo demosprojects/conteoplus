@@ -49,14 +49,14 @@ export async function loginConUsuario(usuario, password) {
     return loginUsuario(email, password);
 }
 
-export async function obtenerNombreUsuario(uid) {
+export async function obtenerPerfilUsuario(uid) {
     const { data, error } = await supabase
         .from("usuarios")
-        .select("nombre")
+        .select("nombre, logo_url")
         .eq("id", uid)
         .maybeSingle();
-    if (error) return null;
-    return data?.nombre ?? null;
+    if (error) return { nombre: null, logoUrl: null };
+    return { nombre: data?.nombre ?? null, logoUrl: data?.logo_url ?? null };
 }
 
 export function logoutUsuario() {
