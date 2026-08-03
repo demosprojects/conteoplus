@@ -177,7 +177,7 @@
             <div class="card">
                 <span class="card__step">Escanear</span>
                 <h2>Código de barras</h2>
-                <p class="hint">Usá la cámara del dispositivo o cargá el código a mano si no se puede leer. Para cargar un nuevo producto en la pestaña de Por nombre escribí el nombre y lo generas. No olvides abrir el dia.</p>
+                <p class="hint">Usá la cámara del dispositivo o cargá el código a mano si no se puede leer. Para cargar un nuevo producto en la pestaña de Por nombre escribí el nombre y lo generas. No olvides abrir el conteo.</p>
 
                 <div class="tabs">
                     <div class="tab is-active" id="tabCamera" data-tab="camera">Cámara</div>
@@ -189,7 +189,13 @@
                 <div class="tab-panel" id="panelCamera">
                     <div class="camera-wrap" id="cameraWrap">
                         <div id="cameraView"></div>
-                        <p class="camera-placeholder" id="cameraPlaceholder">Abri el dia antes de comenzar. La cámara está apagada.<br>Tocá &ldquo;Iniciar cámara&rdquo; para escanear.</p>
+                        <div class="camera-placeholder" id="cameraPlaceholder">
+                            <span class="camera-placeholder-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.4"/></svg>
+                            </span>
+                            <span class="camera-placeholder-title">Cámara apagada</span>
+                            <span class="camera-placeholder-text">Abrí el conteo y tocá &ldquo;Iniciar cámara&rdquo; para escanear.</span>
+                        </div>
                         <div class="scan-overlay">
                             <div class="scan-frame">
                                 <span class="corner corner--tl"></span>
@@ -268,8 +274,8 @@
                 </div>
                 <div class="inventory-actions">
                     <span class="sync-badge is-synced" id="syncBadge">Sincronizado</span>
-                    <button class="btn btn--ghost btn--sm" id="abrirDiaBtn" type="button" disabled style="display:none;">Abrir día</button>
-                    <button class="btn btn--amber btn--sm" id="nuevoInventarioBtn" type="button" disabled>Cerrar día</button>
+                    <button class="btn btn--ghost btn--sm" id="abrirDiaBtn" type="button" disabled style="display:none;">Abrir conteo</button>
+                    <button class="btn btn--amber btn--sm" id="nuevoInventarioBtn" type="button" disabled>Cerrar conteo</button>
                 </div>
             </div>
 
