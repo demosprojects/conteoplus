@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Conteo+</title>
+<link rel="icon" href="logoapp.png" type="image/png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5a524">
+<meta name="background-color" content="#eef0ec">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Conteo+">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Boot loader: pantalla completa que tapa todo mientras se resuelve la
+     sesión — tanto al cargar la página (Firebase confirmando si hay sesión
+     activa) como justo después de tocar "Ingresar" (login + primera carga
+     de la sesión). Se muestra/oculta desde app.js. -->
+<div class="boot-loader" id="bootLoader">
+    <div class="boot-loader__inner">
+        <div class="boot-loader__logo">
+            <div class="boot-loader__logo-ring"></div>
+            <div class="boot-loader__logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+            </div>
+        </div>
+        <div class="boot-loader__mark">Conteo<span>+</span></div>
+        <div class="boot-loader__bar"><div class="boot-loader__bar-fill"></div></div>
+        <div class="boot-loader__label" id="bootLoaderLabel">Iniciando…</div>
+    </div>
+</div>
+
+<!-- Pantalla de login -->
+<div class="login-overlay" id="loginScreen">
+    <div class="login-card">
+        <span class="login-corner login-corner--tl" aria-hidden="true"></span>
+        <span class="login-corner login-corner--tr" aria-hidden="true"></span>
+        <span class="login-corner login-corner--bl" aria-hidden="true"></span>
+        <span class="login-corner login-corner--br" aria-hidden="true"></span>
+
+        <div class="login-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+        </div>
+
+        <span class="eyebrow">Conteo+ | Control de inventario</span>
+        <h1>Ingresá a tu cuenta</h1>
+
+        <form id="loginForm">
+            <div class="field-group">
+                <label class="field-label" for="loginUsuario">Usuario</label>
+                <div class="input-with-icon">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+                    <input type="text" id="loginUsuario" class="manual-input has-icon" required autocomplete="username" autocapitalize="none" placeholder="tu usuario">
+                </div>
+            </div>
+            <div class="field-group">
+                <label class="field-label" for="loginPassword">Contraseña</label>
+                <div class="input-with-icon">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <input type="password" id="loginPassword" class="manual-input has-icon has-toggle" required autocomplete="current-password" placeholder="••••••••">
+                    <button type="button" class="input-toggle" id="togglePassword" aria-label="Mostrar contraseña" aria-pressed="false">
+                        <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 11 7 11 7a13.3 13.3 0 0 1-2.6 3.53M6.6 6.6A13.4 13.4 0 0 0 1 11.5S5 18.5 12 18.5a9.3 9.3 0 0 0 5.4-1.61M9.9 9.9a3 3 0 1 0 4.24 4.24"/><path d="M1 1l22 22"/></svg>
+                    </button>
+                </div>
+            </div>
+            <p class="login-error" id="loginError">No pudimos iniciar sesión.</p>
+            <button type="submit" class="btn btn--primary btn--full" id="loginSubmitBtn">Ingresar</button>
+        </form>
+
+        <div class="login-support">
+            <a class="login-support-link" href="https://wa.me/5493644539325?text=Hola%2C%20necesito%20ayuda%20para%20ingresar%20a%20Conteo%2B" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                <span>¿No podés ingresar? Contactate.</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mostrar/ocultar contraseña en el login. Vive acá (no en app.js) porque es
+// puramente de presentación, sin ninguna dependencia de Firebase ni del
+// estado de la app.
+(function () {
+    var toggleBtn = document.getElementById('togglePassword');
+    var passwordInput = document.getElementById('loginPassword');
+    if (!toggleBtn || !passwordInput) return;
+
+    toggleBtn.addEventListener('click', function () {
+        var mostrar = passwordInput.type === 'password';
+        passwordInput.type = mostrar ? 'text' : 'password';
+        toggleBtn.classList.toggle('is-visible', mostrar);
+        toggleBtn.setAttribute('aria-pressed', String(mostrar));
+        toggleBtn.setAttribute('aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    });
+})();
+
+// Foco automático en el campo de usuario, pero solo en desktop: en mobile
+// dispara el teclado apenas carga la pantalla y tapa media pantalla antes
+// de que el usuario llegue a ver el formulario completo.
+(function () {
+    var usuarioInput = document.getElementById('loginUsuario');
+    if (usuarioInput && window.matchMedia('(pointer: fine)').matches) {
+        usuarioInput.focus();
+    }
+})();
+</script>
+
+<!-- App -->
+<div class="app is-hidden" id="appRoot">
+
+    <header class="topbar">
+        <div class="brand">
+            <span class="eyebrow">Conteo+ | Control de inventario</span>
+            <h1>Terminal de Escaneo</h1>
+        </div>
+        <div class="topbar-right">
+            <div class="status-badge" id="dbStatus">Sin productos · 0 productos</div>
+            <span class="topbar-divider" aria-hidden="true"></span>
+            <div class="topbar-actions">
+                <div class="user-chip" id="userChip" style="display:none;">
+                    <span class="user-chip__avatar" id="userChipAvatar" aria-hidden="true"></span>
+                    <span class="user-chip__text">
+                        <span class="user-chip__greeting" id="userChipGreeting"></span>
+                        <span class="user-chip__name" id="userChipName"></span>
+                    </span>
+                </div>
+                <button class="icon-btn" id="guiaBtn" type="button" aria-label="Cómo usar Conteo+" title="Cómo usar Conteo+">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </button>
+                <button class="icon-btn icon-btn--logout" id="logoutBtn" type="button" aria-label="Cerrar sesión" title="Cerrar sesión">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="pages" id="pages">
+
+        <!-- Página: Escanear (landing por defecto) -->
+        <section class="page is-active" id="pageEscanear" data-page="escanear">
+
+            <!-- Aviso de instalación de la app (PWA) -->
+            <div class="install-banner" id="installCard" style="display:none;">
+                <button type="button" class="install-close" id="installCloseBtn" aria-label="Cerrar aviso">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+                <div class="install-banner__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+                </div>
+                <div class="install-banner__text">
+                    <strong>Instalá Conteo+</strong>
+                    <p id="installCardMsg">Agregala a la pantalla de inicio: entra más rápido y sin la barra del navegador.</p>
+                </div>
+                <button type="button" class="btn btn--amber btn--sm install-banner__btn" id="installBtn">Instalar</button>
+            </div>
+
+            <div class="card">
+                <span class="card__step">Escanear</span>
+                <h2>Código de barras</h2>
+                <p class="hint">Usá la cámara del dispositivo o cargá el código a mano si no se puede leer. Para cargar un nuevo producto en la pestaña de Por nombre escribí el nombre y lo generas. No olvides abrir el dia.</p>
+
+                <div class="tabs">
+                    <div class="tab is-active" id="tabCamera" data-tab="camera">Cámara</div>
+                    <div class="tab" id="tabManual" data-tab="manual">Código</div>
+                    <div class="tab" id="tabBuscar" data-tab="buscar">Por nombre</div>
+                </div>
+
+                <!-- Panel cámara -->
+                <div class="tab-panel" id="panelCamera">
+                    <div class="camera-wrap" id="cameraWrap">
+                        <div id="cameraView"></div>
+                        <p class="camera-placeholder" id="cameraPlaceholder">La cámara está apagada.<br>Tocá &ldquo;Iniciar cámara&rdquo; para escanear.</p>
+                        <div class="scan-overlay">
+                            <div class="scan-frame">
+                                <span class="corner corner--tl"></span>
+                                <span class="corner corner--tr"></span>
+                                <span class="corner corner--bl"></span>
+                                <span class="corner corner--br"></span>
+                                <div class="scan-beam"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button id="startCameraBtn" class="btn btn--amber btn--full" disabled>Iniciar cámara</button>
+                        <button id="stopCameraBtn" class="btn btn--ghost btn--full" style="display:none;">Detener cámara</button>
+                    </div>
+                </div>
+
+                <!-- Panel manual (código) -->
+                <div class="tab-panel" id="panelManual" style="display:none;">
+                    <div class="input-with-action">
+                        <input type="text" id="scannerInput" placeholder="Ingresá o pegá el código"
+                            class="manual-input" inputmode="numeric" pattern="[0-9]*" disabled>
+                        <button type="button" class="input-action-btn" id="scannerEnterBtn" disabled aria-label="Confirmar código" title="Siguiente">
+                            <span class="btn-text">Siguiente</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel búsqueda por nombre (para productos sin código de barra) -->
+                <div class="tab-panel" id="panelBuscar" style="display:none;">
+                    <div class="input-with-action">
+                        <input type="text" id="buscarArticuloInput" placeholder="Escribí el nombre del producto"
+                            class="manual-input" disabled autocomplete="off">
+                        <button type="button" class="input-action-btn" id="buscarEnterBtn" disabled aria-label="Confirmar búsqueda" title="Siguiente">
+                            <span class="btn-text">Siguiente</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+                        </button>
+                    </div>
+                    <div class="buscar-resultados" id="buscarResultados"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Página: Productos (catálogo completo) -->
+        <section class="page" id="pageProductos" data-page="productos">
+            <div class="card log-card" id="productsCard">
+                <span class="card__step">Catálogo</span>
+                <h2>Todos los productos</h2>
+                <p class="hint">Buscá por nombre o código. Tocá el nombre de un producto para corregir su stock.</p>
+
+                <div class="catalog-status" id="catalogStatus" style="display:none;">
+                    <span><strong id="catalogCount">0</strong> productos cargados en tu cuenta</span>
+                </div>
+
+                <div id="catalogUploadPanel">
+                    <p class="hint">Subí el .txt con el catálogo inicial (paso único: después queda guardado en tu cuenta y los productos nuevos se agregan solos al escanear).</p>
+                    <input type="file" id="fileInput" accept=".txt" class="file-btn">
+                </div>
+
+                <input type="text" id="productsSearchInput" class="manual-input" placeholder="Buscar por nombre o código…" autocomplete="off" style="margin-bottom:12px;">
+                <div class="products-list-wrap">
+                    <div id="productsTableBody" class="products-list">
+                        <div class="empty-row">Subí el catálogo para ver los productos</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Página: Conteo (registro del conteo actual) -->
+        <section class="page" id="pageConteo" data-page="conteo">
+            <div class="inventory-bar">
+                <div>
+                    <div class="inv-name" id="invName">—</div>
+                    <div class="inv-state" id="invState">—</div>
+                    <div class="inv-hint"></div>
+                </div>
+                <div class="inventory-actions">
+                    <span class="sync-badge is-synced" id="syncBadge">Sincronizado</span>
+                    <button class="btn btn--ghost btn--sm" id="abrirDiaBtn" type="button" disabled style="display:none;">Abrir día</button>
+                    <button class="btn btn--amber btn--sm" id="nuevoInventarioBtn" type="button" disabled>Cerrar día</button>
+                </div>
+            </div>
+
+            <div class="card log-card">
+                <span class="card__step">Registro</span>
+                <h2>Modificaciones</h2>
+                <p class="hint">¿Te equivocaste al escanear? Tocá el nombre del producto para corregir el stock, o tocá la ✕ para revertirlo.</p>
+                <div class="log-table-wrap">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Artículo</th>
+                                <th class="text-center">Nuevo stock</th>
+                                <th class="text-center"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="scannedTable">
+                            <tr><td colspan="4" class="empty-row">No hay modificaciones recientes</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card card--export">
+                <span class="card__step">Avance (opcional)</span>
+                <h2>Descargar avance parcial</h2>
+                <p class="hint">Usá esto solo si necesitás bajar un adelanto a mitad de conteo. El archivo va a contener lo que llevas escaneado hasta ahora.</p>
+                <button id="downloadBtn" class="btn btn--ghost btn--full" disabled>Descargar avance parcial</button>
+            </div>
+        </section>
+
+        <!-- Página: Historial (antes "Más"; internamente sigue usando el
+             data-page="mas" / id="pageMas" para no tocar toda la lógica de
+             navegación por un simple cambio de nombre visible) -->
+        <section class="page" id="pageMas" data-page="mas">
+
+            <div class="card" id="historialCard">
+                <span class="card__step">Historial</span>
+                <h2>Conteos anteriores</h2>
+                <p class="hint">Buscá por fecha los conteos ya finalizados y volvé a descargar o revisar los productos de cualquiera.</p>
+
+                <div class="historial-chips" id="historialChips">
+                    <button type="button" class="chip" data-rango="0">Hoy</button>
+                    <button type="button" class="chip" data-rango="7">Últimos 7 días</button>
+                    <button type="button" class="chip" data-rango="30">Últimos 30 días</button>
+                </div>
+
+                <div class="historial-filtros">
+                    <div class="field-group">
+                        <label class="field-label" for="histDesde">Desde</label>
+                        <input type="date" id="histDesde" class="manual-input">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label" for="histHasta">Hasta</label>
+                        <input type="date" id="histHasta" class="manual-input">
+                    </div>
+                </div>
+                <button class="btn btn--ghost btn--full" id="histBuscarBtn" type="button">Buscar conteos</button>
+
+                <div class="historial-resumen" id="historialResumen" style="display:none;"></div>
+
+                <div class="historial-lista" id="historialLista">
+                    <p class="hint" id="historialVacio">Elegí un rango de fechas o tocá un atajo arriba.</p>
+                </div>
+            </div>
+
+            <!-- Zona de peligro: solo visible con ?reset=1 en la URL. Uso exclusivo
+                 de testing, borra catálogo e inventarios completos para volver a
+                 subir un .txt desde cero. -->
+            <div class="card card--danger" id="dangerZone" style="display:none;">
+                <span class="card__step">⚠ Testing</span>
+                <h2>Borrar catálogo completo</h2>
+                <p class="hint">Elimina TODOS los productos y TODOS los inventarios (abiertos y cerrados) de esta cuenta, para poder subir un .txt inicial de nuevo. No se puede deshacer.</p>
+                <button class="btn btn--danger btn--full" id="borrarTodoBtn" type="button">Borrar catálogo e inventarios</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Navegación inferior (pensada para uso con una mano en celular) -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-btn is-active" data-page="escanear" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+            <span>Escanear</span>
+        </button>
+        <button class="nav-btn" data-page="conteo" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Conteo</span>
+            <span class="nav-badge" id="navConteoBadge" style="display:none;">0</span>
+        </button>
+        <button class="nav-btn" data-page="productos" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+            <span>Productos</span>
+        </button>
+        <button class="nav-btn" data-page="mas" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            <span>Historial</span>
+        </button>
+    </nav>
+</div>
+
+<!-- Modal de cantidad (producto conocido) -->
+<div class="modal-overlay" id="qtyModal">
+    <div class="modal">
+        <span class="modal-mode-badge" id="qtyModalModeBadge">Sumar / restar</span>
+        <h3 id="qtyModalProductName">Producto</h3>
+        <p class="modal-code">Código: <span id="qtyModalProductCode">—</span></p>
+        <p class="stock-current">Stock actual: <strong id="qtyModalCurrentStock">0</strong></p>
+        <p class="qty-mode-hint" id="qtyModalHint">Ingresá cuánto sumar o restar (usá números negativos para restar).</p>
+
+        <div class="qty-control">
+            <button class="qty-btn" id="qtyMinus" type="button">−</button>
+            <input type="number" id="qtyInput" class="qty-input" value="1">
+            <button class="qty-btn" id="qtyPlus" type="button">+</button>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn--ghost btn--full" id="qtyCancel">Cancelar</button>
+            <button class="btn btn--primary btn--full" id="qtyConfirm">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de producto nuevo (código no encontrado, o alta manual sin código) -->
+<div class="modal-overlay" id="newProductModal">
+    <div class="modal">
+        <h3>Producto nuevo</h3>
+        <div class="modal-code-row">
+            <p class="modal-code">Código: <span id="npCodigo">—</span></p>
+            <button type="button" class="np-codigo-editar" id="npCodigoEditarBtn" aria-label="Corregir código" title="Corregir código">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
+        </div>
+        <div class="field-group np-codigo-edit-group" id="npCodigoEditGroup" style="display:none;">
+            <label class="field-label" for="npCodigoInput">Corregir código</label>
+            <div class="np-codigo-edit-row">
+                <input type="text" id="npCodigoInput" class="manual-input" inputmode="numeric" autocomplete="off" placeholder="Código correcto">
+                <button type="button" class="btn btn--amber btn--sm" id="npCodigoGuardar">Guardar</button>
+            </div>
+        </div>
+
+        <div class="field-group">
+            <label class="field-label" for="npDescripcion">Descripción</label>
+            <input type="text" id="npDescripcion" class="manual-input" placeholder="Nombre del producto">
+        </div>
+        <div class="field-group">
+            <label class="field-label" for="npUnidades">Unidad</label>
+            <input type="text" id="npUnidades" class="manual-input" value="unidad">
+        </div>
+        <div class="field-group">
+            <label class="field-label" for="npStock">Stock inicial</label>
+            <input type="number" id="npStock" class="manual-input" value="1">
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn--ghost btn--full" id="npCancel" type="button">Cancelar</button>
+            <button class="btn btn--primary btn--full" id="npConfirm" type="button">Agregar producto</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación genérica (reemplaza a confirm()) -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal modal--confirm">
+        <h3 id="confirmModalTitle">¿Confirmás?</h3>
+        <p class="confirm-message" id="confirmModalMessage"></p>
+
+        <div class="modal-actions">
+            <button class="btn btn--ghost btn--full" id="confirmModalCancel" type="button">Cancelar</button>
+            <button class="btn btn--primary btn--full" id="confirmModalConfirm" type="button">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación peligrosa, requiere escribir una palabra (reemplaza a prompt()) -->
+<div class="modal-overlay" id="dangerModal">
+    <div class="modal modal--confirm modal--danger">
+        <h3 id="dangerModalTitle">Zona de peligro</h3>
+        <p class="confirm-message" id="dangerModalMessage"></p>
+
+        <div class="field-group">
+            <label class="field-label" id="dangerModalInputLabel" for="dangerModalInput">Escribí BORRAR para confirmar</label>
+            <input type="text" id="dangerModalInput" class="manual-input" autocomplete="off" placeholder="BORRAR">
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn--ghost btn--full" id="dangerModalCancel" type="button">Cancelar</button>
+            <button class="btn btn--danger btn--full" id="dangerModalConfirm" type="button" disabled>Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Guía de uso: tutorial paso a paso, se puede abrir desde el botón (?)
+     del header, y también aparece sola la primera vez que alguien entra. -->
+<div class="modal-overlay" id="guiaModal">
+    <div class="modal modal--guia">
+        <button class="modal-close" id="guiaCerrarX" type="button" aria-label="Cerrar guía">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+
+        <span class="eyebrow">¿Cómo usar Conteo+?</span>
+        <span class="guia-paso-contador" id="guiaContador">Paso 1 de 6</span>
+
+        <div class="guia-icon" id="guiaIcono" aria-hidden="true"></div>
+
+        <h3 id="guiaTitulo"></h3>
+        <p class="guia-texto" id="guiaTexto"></p>
+
+        <div class="guia-dots" id="guiaDots"></div>
+
+        <div class="modal-actions">
+            <button class="btn btn--ghost" id="guiaAnterior" type="button">Anterior</button>
+            <button class="btn btn--amber" id="guiaSiguiente" type="button">Siguiente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
