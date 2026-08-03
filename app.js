@@ -485,7 +485,7 @@ async function inicializarSesion(uid) {
         await asegurarInventarioActual(uid);
     } catch (err) {
         console.error(err);
-        showToast('No se pudo abrir el inventario del día.', 'error');
+        showToast('No se pudo abrir el inventario del conteo.', 'error');
     }
 
     unsubInventario = escucharInventarioActual(uid, (inv) => {
@@ -590,6 +590,10 @@ function habilitarEscaneo() {
     document.getElementById('buscarEnterBtn').disabled = false;
     document.getElementById('startCameraBtn').disabled = false;
     document.getElementById('downloadBtn').disabled = false;
+    // Con el conteo abierto, el cartel "Abrí el conteo…" ya no aplica: se
+    // oculta el texto del placeholder y queda solo el ícono de cámara
+    // (que sigue con su pulso) invitando a tocar "Iniciar cámara".
+    document.getElementById('cameraWrap').classList.add('conteo-abierto');
 }
 
 function deshabilitarEscaneo() {
@@ -599,6 +603,7 @@ function deshabilitarEscaneo() {
     document.getElementById('buscarEnterBtn').disabled = true;
     document.getElementById('startCameraBtn').disabled = true;
     document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('cameraWrap').classList.remove('conteo-abierto');
 }
 
 // -------------------------------
@@ -719,10 +724,10 @@ function renderInventarioBar() {
     const estaAbierto = inventarioActual.estado === 'abierto';
     document.getElementById('invName').textContent = estaAbierto
         ? inventarioActual.nombre
-        : 'Día cerrado';
+        : 'Conteo cerrado';
     document.getElementById('invState').textContent = estaAbierto
         ? 'Abierto'
-        : 'Tocá "Abrir día" para empezar a escanear';
+        : 'Tocá "Abrir conteo" para empezar a escanear';
 
     document.getElementById('pageConteo').classList.toggle('inv-cerrado', !estaAbierto);
 
@@ -878,8 +883,8 @@ const PASOS_GUIA = [
         icono: '<path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>'
     },
     {
-        titulo: 'Abrir el día',
-        texto: 'Antes de comenzar el conteo, presioná "Abrir día". Mientras el día esté abierto, el sistema permitirá escanear y modificar el stock.',
+        titulo: 'Abrir el conteo',
+        texto: 'Antes de comenzar el conteo, presioná "Abrir conteo". Mientras el conteo esté abierto, el sistema permitirá escanear y modificar el stock.',
         icono: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>'
     },
     {
@@ -893,8 +898,8 @@ const PASOS_GUIA = [
         icono: '<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>'
     },
     {
-        titulo: 'Cerrar el día',
-        texto: 'Al finalizar el conteo, presioná "Cerrar día". El sistema guardará el inventario y va a poder generar el archivo .txt con las modificaciones para importar nuevamente al sistema POS.',
+        titulo: 'Cerrar el conteo',
+        texto: 'Al finalizar el conteo, presioná "Cerrar conteo". El sistema guardará el inventario y va a poder generar el archivo .txt con las modificaciones para importar nuevamente al sistema POS.',
         icono: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
     },
     {
@@ -969,12 +974,12 @@ document.getElementById('nuevoInventarioBtn').addEventListener('click', async fu
 
     const cantidad = productosModificados.size;
     const mensajeConfirmar = cantidad > 0
-        ? `Se va a cerrar el día con ${cantidad} producto(s) modificado(s). El escaneo va a quedar bloqueado hasta que vuelvas a abrir el día. ¿Confirmás?`
-        : 'No modificaste ningún producto en este conteo. ¿Igual querés cerrar el día?';
+        ? `Se va a cerrar el conteo con ${cantidad} producto(s) modificado(s). El escaneo va a quedar bloqueado hasta que vuelvas a abrir el conteo. ¿Confirmás?`
+        : 'No modificaste ningún producto en este conteo. ¿Igual querés cerrar el conteo?';
     const confirmado = await mostrarConfirm({
-        titulo: 'Cerrar día',
+        titulo: 'Cerrar conteo',
         mensaje: mensajeConfirmar,
-        textoConfirmar: 'Cerrar día'
+        textoConfirmar: 'Cerrar conteo'
     });
     if (!confirmado) return;
 
@@ -1005,13 +1010,13 @@ document.getElementById('nuevoInventarioBtn').addEventListener('click', async fu
         productosNuevosEnEsteConteo.clear();
         showToast(
             archivado
-                ? 'Día cerrado. Tocá "Abrir día" cuando quieras empezar el próximo conteo.'
-                : 'Día cerrado sin cambios: no se guardó nada en el Historial. Tocá "Abrir día" para el próximo conteo.',
+                ? 'Conteo cerrado. Tocá "Abrir conteo" cuando quieras empezar el próximo.'
+                : 'Conteo cerrado sin cambios: no se guardó nada en el Historial. Tocá "Abrir conteo" para el próximo.',
             'success'
         );
     } catch (err) {
         console.error(err);
-        showToast('No se pudo cerrar el día.', 'error');
+        showToast('No se pudo cerrar el conteo.', 'error');
     }
 });
 
@@ -1023,10 +1028,10 @@ document.getElementById('abrirDiaBtn').addEventListener('click', async function 
         // con nombre y fecha nuevos. El listener de escucharInventarioActual
         // se entera solo en todos los dispositivos conectados.
         await abrirInventario(currentUser.uid);
-        showToast('Día abierto. ¡A escanear!', 'success');
+        showToast('Conteo abierto. ¡A escanear!', 'success');
     } catch (err) {
         console.error(err);
-        showToast('No se pudo abrir el día.', 'error');
+        showToast('No se pudo abrir el conteo.', 'error');
     }
 });
 
@@ -1434,7 +1439,7 @@ productsTableBody.addEventListener('click', async function (e) {
     // se abre el próximo día (abrirInventario resetea los items). Por eso, si
     // no hay un día abierto, ni siquiera dejamos abrir el modal.
     if (!inventarioActual || inventarioActual.estado !== 'abierto') {
-        showToast('Para editar el stock de un producto primero tenés que abrir el día.', 'info');
+        showToast('Para editar el stock de un producto primero tenés que abrir el conteo.', 'info');
         return;
     }
 
