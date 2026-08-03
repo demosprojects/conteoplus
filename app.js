@@ -3,7 +3,7 @@ import {
     onAuthChange,
     loginConUsuario,
     logoutUsuario,
-    obtenerNombreUsuario,
+    obtenerPerfilUsuario,
     escucharCatalogo,
     importarCatalogo,
     crearProducto,
@@ -319,14 +319,31 @@ function actualizarBadgeConteo() {
 // (es decir, una vez por sesión/login, no en cada re-render).
 const SALUDOS_USUARIO = ['Hola', 'Bienvenido', 'Qué bueno verte', 'Gracias por usar Conteo+'];
 
-function mostrarSaludoUsuario(nombre) {
+function mostrarSaludoUsuario(nombre, logoUrl) {
     const chip = document.getElementById('userChip');
     if (!nombre) {
         chip.style.display = 'none';
         return;
     }
     const saludo = SALUDOS_USUARIO[Math.floor(Math.random() * SALUDOS_USUARIO.length)];
-    document.getElementById('userChipAvatar').textContent = nombre.trim().charAt(0).toUpperCase();
+    const avatar = document.getElementById('userChipAvatar');
+    const letra = nombre.trim().charAt(0).toUpperCase();
+
+    // Mostramos la letra de entrada (por si el logo tarda o falla en cargar)
+    // y, si hay un link de logo cargado, lo probamos aparte: recién lo
+    // ponemos de fondo si efectivamente carga bien, así una URL rota o
+    // caída de Cloudinary no deja el chip en blanco.
+    avatar.style.backgroundImage = '';
+    avatar.textContent = letra;
+    if (logoUrl) {
+        const img = new Image();
+        img.onload = () => {
+            avatar.style.backgroundImage = `url("${logoUrl}")`;
+            avatar.textContent = '';
+        };
+        img.src = logoUrl;
+    }
+
     document.getElementById('userChipGreeting').textContent = saludo;
     document.getElementById('userChipName').textContent = nombre;
     chip.style.display = 'flex';
@@ -365,11 +382,11 @@ onAuthChange(async function (userSupabase) {
         // (nunca cae al email como respaldo).
         mostrarSaludoUsuario(null);
         currentUserNombre = null;
-        obtenerNombreUsuario(user.uid).then(nombre => {
+        obtenerPerfilUsuario(user.uid).then(({ nombre, logoUrl }) => {
             if (!currentUser || currentUser.uid !== user.uid) return; // se deslogueó/cambió de cuenta mientras esperábamos
             currentUserNombre = nombre;
-            mostrarSaludoUsuario(nombre);
-        }).catch(err => console.warn('No se pudo obtener el nombre de usuario:', err));
+            mostrarSaludoUsuario(nombre, logoUrl);
+        }).catch(err => console.warn('No se pudo obtener el perfil de usuario:', err));
 
         const params = new URLSearchParams(location.search);
         document.getElementById('dangerZone').style.display = params.get('reset') === '1' ? '' : 'none';
@@ -2352,14 +2369,29 @@ document.getElementById('borrarTodoBtn').addEventListener('click', async functio
 // -------------------------------
 (function () {
     const CLAVE_DESCARTADO = 'conteoplus_install_dismissed';
-    const installCard = document.getElementById('installCard');
-    const installBtn = document.getElementById('installBtn');
-    const installMsg = document.getElementById('installCardMsg');
-    const installCloseBtn = document.getElementById('installCloseBtn');
-    if (!installCard) return;
+
+    // Dos avisos que comparten el mismo mecanismo de instalación: el grande
+    // de adentro de la app (pestaña Escanear) y el chico de la pantalla de
+    // login. Se buscan ambos; si alguno no existe en el HTML (ej. una
+    // versión vieja de index.html) se lo descarta solo, sin romper el otro.
+    const banners = [
+        {
+            card: document.getElementById('installCard'),
+            btn: document.getElementById('installBtn'),
+            msg: document.getElementById('installCardMsg'),
+            closeBtn: document.getElementById('installCloseBtn')
+        },
+        {
+            card: document.getElementById('loginInstallCard'),
+            btn: document.getElementById('loginInstallBtn'),
+            msg: document.getElementById('loginInstallCardMsg'),
+            closeBtn: document.getElementById('loginInstallCloseBtn')
+        }
+    ].filter(b => b.card);
+    if (banners.length === 0) return;
 
     let deferredPrompt = null;
-    let banerMostrado = false; // solo marcamos "descartado para siempre" si el aviso llegó a mostrarse de verdad
+    let banerMostrado = false; // solo marcamos "descartado para siempre" si algún aviso llegó a mostrarse de verdad
 
     const esStandalone = window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true; // Safari iOS
@@ -2378,13 +2410,18 @@ document.getElementById('borrarTodoBtn').addEventListener('click', async functio
         try { localStorage.setItem(CLAVE_DESCARTADO, '1'); } catch (e) { /* localStorage no disponible, no pasa nada */ }
     }
 
+    // Mostramos/ocultamos TODOS los avisos a la vez: como el de login vive
+    // dentro de loginScreen y el de la app dentro de appRoot, y esas dos
+    // pantallas son mutuamente excluyentes (is-hidden), en la práctica el
+    // usuario ve como máximo uno solo a la vez sin que haga falta
+    // preguntarle a app.js en qué pantalla está.
     function mostrarBanner() {
         banerMostrado = true;
-        installCard.style.display = '';
+        banners.forEach(b => { b.card.style.display = ''; });
     }
 
     function ocultarBanner() {
-        installCard.style.display = 'none';
+        banners.forEach(b => { b.card.style.display = 'none'; });
     }
 
     // Atajo de testing: entrar con ?resetInstall=1 en la URL borra el
@@ -2394,12 +2431,14 @@ document.getElementById('borrarTodoBtn').addEventListener('click', async functio
         try { localStorage.removeItem(CLAVE_DESCARTADO); } catch (e) { /* localStorage no disponible, no pasa nada */ }
     }
 
-    if (installCloseBtn) {
-        installCloseBtn.addEventListener('click', function () {
-            marcarDescartado();
-            ocultarBanner();
-        });
-    }
+    banners.forEach(b => {
+        if (b.closeBtn) {
+            b.closeBtn.addEventListener('click', function () {
+                marcarDescartado();
+                ocultarBanner();
+            });
+        }
+    });
 
     // Ya instalada (se abrió como app) o el usuario ya cerró el aviso antes:
     // no mostramos nada.
@@ -2408,24 +2447,27 @@ document.getElementById('borrarTodoBtn').addEventListener('click', async functio
     if (esIOS) {
         // Safari en iOS no dispara "beforeinstallprompt": no hay forma de
         // instalar con un solo toque, así que mostramos el paso manual.
-        if (installMsg) installMsg.textContent = 'Tocá el ícono de compartir de Safari (⬆) y elegí "Agregar a inicio" para instalarla.';
-        if (installBtn) installBtn.style.display = 'none';
+        banners.forEach(b => {
+            if (b.msg) b.msg.textContent = 'Tocá el ícono de compartir de Safari (⬆) y elegí "Agregar a inicio" para instalarla.';
+            if (b.btn) b.btn.style.display = 'none';
+        });
         mostrarBanner();
         return;
     }
 
     // Chrome/Edge/Android: capturamos el evento del navegador y lo disparamos
-    // recién cuando el usuario toca nuestro botón.
+    // recién cuando el usuario toca alguno de los botones "Instalar".
     window.addEventListener('beforeinstallprompt', function (e) {
         e.preventDefault();
         deferredPrompt = e;
         mostrarBanner();
     });
 
-    if (installBtn) {
-        installBtn.addEventListener('click', async function () {
+    banners.forEach(b => {
+        if (!b.btn) return;
+        b.btn.addEventListener('click', async function () {
             if (!deferredPrompt) return;
-            installBtn.disabled = true;
+            b.btn.disabled = true;
             deferredPrompt.prompt();
             try {
                 const { outcome } = await deferredPrompt.userChoice;
@@ -2435,15 +2477,15 @@ document.getElementById('borrarTodoBtn').addEventListener('click', async functio
                 }
             } finally {
                 deferredPrompt = null;
-                installBtn.disabled = false;
+                b.btn.disabled = false;
             }
         });
-    }
+    });
 
     // Si el navegador confirma que se instaló, ocultamos y no volvemos a
-    // insistir — pero solo contamos esto como "descartado" si el aviso
+    // insistir — pero solo contamos esto como "descartado" si algún aviso
     // llegó a estar visible en esta sesión, para no marcar la cuenta como
-    // "ya lo cerró" por un evento que no tuvo que ver con nuestro banner.
+    // "ya lo cerró" por un evento que no tuvo que ver con nuestros banners.
     window.addEventListener('appinstalled', function () {
         ocultarBanner();
         if (banerMostrado) marcarDescartado();
