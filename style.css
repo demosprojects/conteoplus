@@ -989,16 +989,13 @@ body.modal-open {
 .login-corner--br { bottom: -3px; right: -3px; border-left: 0; border-top: 0; border-radius: 0 0 8px 0; }
 
 .login-badge {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: var(--ink);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 12px;
+    display: block;
+    height: 84px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    margin: 0 auto 16px;
 }
-.login-badge svg { width: 22px; height: 22px; stroke: var(--amber); }
 
 .login-card h1 {
     font-family: 'Space Grotesk', sans-serif;
@@ -1012,12 +1009,36 @@ body.modal-open {
 
 .login-error {
     display: none;
-    color: var(--danger);
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--danger-soft);
+    border: 1px solid #f3c6c7;
+    border-radius: 10px;
+    color: #a02327;
     font-size: 13px;
+    font-weight: 500;
+    line-height: 1.45;
+    padding: 10px 12px;
     margin: -6px 0 14px;
+    animation: loginErrorIn .2s cubic-bezier(.22, .9, .3, 1.2);
 }
 
-.login-error.show { display: block; }
+.login-error.show { display: flex; }
+
+.login-error-icon {
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    margin-top: 1px;
+    color: var(--danger);
+}
+
+.login-error-text { flex: 1; min-width: 0; }
+
+@keyframes loginErrorIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
 /* Inputs con ícono a la izquierda (y, en contraseña, botón de mostrar a
    la derecha) */
@@ -1066,32 +1087,44 @@ body.modal-open {
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px solid var(--line);
-    text-align: center;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
 }
 
 .login-support-link {
-    display: inline-flex;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
     justify-content: center;
+    gap: 6px;
     font-family: 'Inter', sans-serif;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
+    line-height: 1.25;
+    text-align: center;
     color: var(--ink-soft);
     text-decoration: none;
-    padding: 9px 12px;
-    border-radius: 8px;
-    transition: background .15s, color .15s;
+    padding: 10px 6px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    transition: background .15s, color .15s, border-color .15s;
     -webkit-tap-highlight-color: transparent;
 }
 .login-support-link:hover,
-.login-support-link:focus-visible { background: var(--success-soft); color: #1c6b2c; }
-.login-support-link svg { width: 18px; height: 18px; flex-shrink: 0; color: #25d366; }
+.login-support-link:focus-visible { background: var(--success-soft); border-color: #bfe4c8; color: #1c6b2c; }
+.login-support-link svg { width: 17px; height: 17px; flex-shrink: 0; color: #25d366; }
+
+@media (max-width: 380px) {
+    .login-support { gap: 6px; }
+    .login-support-link { font-size: 11.5px; padding: 9px 4px; }
+}
 
 @media (max-width: 380px) {
     .login-card { padding: 28px 20px 20px; border-radius: 16px; }
-    .login-badge { width: 44px; height: 44px; margin-bottom: 12px; }
-    .login-support-link span { font-size: 12.5px; }
+    .login-badge { height: 68px; margin: 0 auto 12px; }
     .field-group { margin-bottom: 13px; }
 }
 
