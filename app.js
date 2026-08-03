@@ -1428,6 +1428,16 @@ productsTableBody.addEventListener('click', async function (e) {
         return;
     }
 
+    // La edición de stock desde acá escribe en el inventario del día actual
+    // (sincronizarItemInventario). Si el día está cerrado, ese cambio queda
+    // "flotando" en un inventario cerrado y se pierde sin dejar rastro apenas
+    // se abre el próximo día (abrirInventario resetea los items). Por eso, si
+    // no hay un día abierto, ni siquiera dejamos abrir el modal.
+    if (!inventarioActual || inventarioActual.estado !== 'abierto') {
+        showToast('Para editar el stock de un producto primero tenés que abrir el día.', 'info');
+        return;
+    }
+
     const producto = baseDeDatos.find(p => p.codigoArt === codigo);
     if (producto) abrirModalCantidad(producto, 'editar');
 });
@@ -2511,21 +2521,81 @@ document.getElementById('borrarTodoBtn').addEventListener('click', async functio
 })();
 
 // -------------------------------
+// PWA: aviso de "hay una versión nueva" con botón "Actualizar"
+// -------------------------------
+// A diferencia de showToast() (que se cierra solo a los ~3s), este aviso se
+// queda en pantalla hasta que el usuario lo cierra o toca "Actualizar": no
+// queremos que se pierda mientras el usuario está en medio de un escaneo.
+function mostrarToastActualizacion(onActualizar) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast info toast-update';
+    toast.innerHTML = `
+        <span class="toast-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </span>
+        <span class="toast-message">Hay una versión nueva de la app disponible.</span>
+        <button type="button" class="toast-update-btn">Actualizar</button>
+        <button type="button" class="toast-close" aria-label="Cerrar aviso">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    const cerrarToast = () => {
+        if (toast.classList.contains('fade-out')) return;
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 200);
+    };
+
+    toast.querySelector('.toast-close').addEventListener('click', cerrarToast);
+    toast.querySelector('.toast-update-btn').addEventListener('click', () => {
+        cerrarToast();
+        onActualizar();
+    });
+    // Sin setTimeout de auto-cierre a propósito: este aviso se queda hasta
+    // que el usuario decide qué hacer.
+}
+
+// -------------------------------
 // PWA: registro del Service Worker
 // -------------------------------
 if ('serviceWorker' in navigator) {
+    let recargaEnCurso = false;
+
+    // Se dispara cuando el SW nuevo (después de skipWaiting) toma el control
+    // de la página. Recargamos una sola vez para que el usuario vea la
+    // versión nueva del app shell.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (recargaEnCurso) return;
+        recargaEnCurso = true;
+        window.location.reload();
+    });
+
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
             .then((registration) => {
-                // Si hay una versión nueva del SW esperando, avisamos para
-                // que el usuario recargue y quede al día (evita que quede
-                // atascado con una versión vieja del app shell cacheado).
+                // Si ya había un SW nuevo esperando de una visita anterior (ej.
+                // se cerró la pestaña antes de tocar "Actualizar"), avisamos
+                // apenas carga la página.
+                if (registration.waiting && navigator.serviceWorker.controller) {
+                    mostrarToastActualizacion(() => {
+                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    });
+                }
+
+                // Si hay una versión nueva del SW instalándose ahora (por
+                // ejemplo, porque se subió un sw.js distinto a GitHub),
+                // avisamos apenas termina de instalar y queda "esperando".
                 registration.addEventListener('updatefound', () => {
                     const nuevoWorker = registration.installing;
                     if (!nuevoWorker) return;
                     nuevoWorker.addEventListener('statechange', () => {
                         if (nuevoWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showToast('Hay una actualización disponible. Cerrá y volvé a abrir la app para aplicarla.', 'info');
+                            mostrarToastActualizacion(() => {
+                                nuevoWorker.postMessage({ type: 'SKIP_WAITING' });
+                            });
                         }
                     });
                 });
