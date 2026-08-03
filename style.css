@@ -226,8 +226,10 @@ body.modal-open {
 /* Camera */
 .camera-wrap {
     position: relative;
-    background: #0b0d10;
-    border-radius: 12px;
+    background: radial-gradient(120% 130% at 50% 0%, #262f3b 0%, #171b22 55%, #0d1015 100%);
+    border-radius: var(--radius);
+    border: 1px solid rgba(255, 255, 255, .06);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 10px 28px rgba(12, 14, 18, .28);
     overflow: hidden;
     height: 260px;
     display: flex;
@@ -241,12 +243,68 @@ body.modal-open {
 
 .camera-placeholder {
     position: absolute;
-    color: #8a94a1;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
-    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 250px;
     text-align: center;
     padding: 20px;
+}
+
+.camera-placeholder-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(245, 165, 36, .13);
+    color: var(--amber);
+    box-shadow: 0 0 0 1px rgba(245, 165, 36, .2);
+    animation: cameraIconPulse 2.6s ease-in-out infinite;
+}
+.camera-placeholder-icon svg { width: 24px; height: 24px; }
+
+.camera-placeholder-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, .88);
+}
+
+.camera-placeholder-text {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, .48);
+}
+
+@keyframes cameraIconPulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(245, 165, 36, .2), 0 0 0 0 rgba(245, 165, 36, .28); }
+    50% { box-shadow: 0 0 0 1px rgba(245, 165, 36, .3), 0 0 0 9px rgba(245, 165, 36, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .camera-placeholder-icon { animation: none; }
+}
+
+/* Con el conteo abierto (y la cámara todavía sin iniciar), el subtítulo
+   "Abrí el conteo…" ya no tiene sentido: se oculta, y el título "Cámara
+   apagada" queda parpadeando para invitar a tocar "Iniciar cámara". */
+.camera-wrap.conteo-abierto .camera-placeholder-text {
+    display: none;
+}
+
+.camera-wrap.conteo-abierto .camera-placeholder-title {
+    animation: cameraTitleBlink 1.6s ease-in-out infinite;
+}
+
+@keyframes cameraTitleBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .camera-wrap.conteo-abierto .camera-placeholder-title { animation: none; }
 }
 
 .camera-wrap.is-scanning .camera-placeholder { display: none; }
