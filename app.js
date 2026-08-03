@@ -766,14 +766,20 @@ function sincronizarItemsDesdeInventario(items) {
         // sincronizado) para que el .txt final salga con el stock más
         // fresco; si por algún motivo todavía no llegó al catálogo local,
         // usamos directamente lo que dice el item del inventario.
-        const producto = baseDeDatos.find(p => p.codigoArt === item.codigo) || {
-            codigoArt: item.codigo,
-            articulo: item.descripcion,
-            unidades: item.unidades,
-            stock_unidad: item.stock,
-            registrado: '',
-            hora: ''
-        };
+        // OJO: el catálogo (baseDeDatos) nunca tiene fecha/hora de registro
+        // -- ese dato solo existe en el item del inventario -- así que
+        // siempre lo tomamos de ahí y no del catálogo, o se pierde en el .txt.
+        const productoCatalogo = baseDeDatos.find(p => p.codigoArt === item.codigo);
+        const producto = productoCatalogo
+            ? { ...productoCatalogo, registrado: item.registrado || '', hora: item.hora || '' }
+            : {
+                codigoArt: item.codigo,
+                articulo: item.descripcion,
+                unidades: item.unidades,
+                stock_unidad: item.stock,
+                registrado: item.registrado || '',
+                hora: item.hora || ''
+            };
         productosModificados.set(item.codigo, producto);
     });
     actualizarBadgeConteo();
@@ -1026,16 +1032,28 @@ document.getElementById('abrirDiaBtn').addEventListener('click', async function 
 
 async function sincronizarItemInventario(producto) {
     if (!inventarioActual) return;
-    const horaActual = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    const ahora = new Date();
+    // Fecha y hora del momento exacto en que se registra el escaneo/edición.
+    // Formato M/D/AAAA y hh:mm:ss AM/PM (en-US) para que coincida con el
+    // formato esperado del .txt, ej: "9/2/2026;9:56:30 PM".
+    const registradoActual = ahora.toLocaleDateString('es-AR');
+    const horaActual = ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     const ok = await actualizarItemInventario(inventarioActual.id, producto.codigoArt, {
         codigo: producto.codigoArt,
         descripcion: producto.articulo,
         unidades: producto.unidades,
         stock: producto.stock_unidad,
+        registrado: registradoActual,
         hora: horaActual
     });
     if (!ok) {
         showToast(`No se pudo sincronizar "${producto.articulo}" con el inventario.`, 'error');
+    } else {
+        // Reflejamos la fecha/hora también en el objeto en memoria: así, si
+        // este mismo dispositivo descarga el .txt antes de que vuelva el eco
+        // del listener en tiempo real, ya sale con el dato correcto.
+        producto.registrado = registradoActual;
+        producto.hora = horaActual;
     }
 }
 
