@@ -10,13 +10,13 @@
 // IMPORTANTE: subí CACHE_VERSION cada vez que hagas un deploy con cambios en
 // los archivos cacheados (app.js, style.css, index.html, firebase.js), si no
 // los usuarios pueden quedar viendo una versión vieja hasta que expire el caché.
-const CACHE_VERSION = 'conteo-plus-v1.10';
+const CACHE_VERSION = 'conteo-plus-v1.6';
 
 const APP_SHELL = [
     './',
     './index.html',
     './app.js',
-    './firebase.js',
+    './supabase.js',
     './style.css',
     './manifest.json',
     './web-app-manifest-192x192.png',
@@ -27,11 +27,15 @@ const APP_SHELL = [
 // -------------------------------
 // Instalación: precachea el app shell
 // -------------------------------
+// OJO: a propósito NO se llama a self.skipWaiting() acá. Si lo hiciéramos,
+// el SW nuevo tomaría el control solo, apenas termina de instalar, sin que
+// el usuario llegue a ver ni a confirmar el aviso "Actualizar" de la app
+// (ver app.js). Se queda "esperando" (registration.waiting) hasta que
+// llega el mensaje SKIP_WAITING de más abajo, disparado por el botón.
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_VERSION)
             .then((cache) => cache.addAll(APP_SHELL))
-            .then(() => self.skipWaiting())
     );
 });
 
@@ -48,6 +52,16 @@ self.addEventListener('activate', (event) => {
             ))
             .then(() => self.clients.claim())
     );
+});
+
+// -------------------------------
+// Mensaje desde la app: el usuario tocó "Actualizar" en el aviso de nueva
+// versión. Recién ahí dejamos que este SW en espera tome el control.
+// -------------------------------
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // -------------------------------
