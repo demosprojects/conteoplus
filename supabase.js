@@ -24,8 +24,17 @@ export function onAuthChange(callback) {
 }
 
 export async function loginUsuario(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw { code: "auth/invalid-credential", message: error.message };
+    let resultado;
+    try {
+        resultado = await supabase.auth.signInWithPassword({ email, password });
+    } catch (err) {
+        // El SDK de Supabase tira una excepción (en vez de devolver "error")
+        // cuando el fetch ni siquiera pudo salir, típicamente por estar sin
+        // conexión a internet.
+        throw { code: "auth/network-error", message: err?.message };
+    }
+    const { data, error } = resultado;
+    if (error) throw mapearErrorAuth(error);
     await asegurarUsuarioDoc(data.user);
     return data.user;
 }
@@ -40,13 +49,46 @@ export async function loginUsuario(email, password) {
 // diferencia de Firestore, una policy de SELECT en Postgres expone la tabla
 // entera, por eso acá no hay policy de lectura directa, solo la función).
 export async function loginConUsuario(usuario, password) {
-    const { data: email, error } = await supabase.rpc("get_email_by_usuario", {
-        p_usuario: usuario
-    });
-    if (error || !email) {
-        throw { code: "auth/invalid-credential" };
+    let resultado;
+    try {
+        resultado = await supabase.rpc("get_email_by_usuario", {
+            p_usuario: usuario
+        });
+    } catch (err) {
+        throw { code: "auth/network-error", message: err?.message };
+    }
+    const { data: email, error } = resultado;
+    if (error) {
+        // Esto es un fallo real de la función RPC (ej. la base de datos no
+        // respondió), distinto de "el usuario no existe".
+        throw { code: "auth/network-error", message: error.message };
+    }
+    if (!email) {
+        throw { code: "auth/user-not-found" };
     }
     return loginUsuario(email, password);
+}
+
+// Traduce los errores crudos que devuelve Supabase Auth a códigos propios,
+// para poder mostrar un mensaje específico en el login según el caso (ver
+// mensajeErrorLogin en app.js). Supabase, por seguridad, no distingue entre
+// "no existe ese email" y "la contraseña está mal" — ambos casos devuelven
+// el mismo "Invalid login credentials".
+function mapearErrorAuth(error) {
+    const msg = (error?.message || "").toLowerCase();
+    if (msg.includes("invalid login credentials")) {
+        return { code: "auth/invalid-credential", message: error.message };
+    }
+    if (msg.includes("email not confirmed")) {
+        return { code: "auth/email-not-confirmed", message: error.message };
+    }
+    if (msg.includes("rate limit") || msg.includes("too many")) {
+        return { code: "auth/too-many-requests", message: error.message };
+    }
+    if (msg.includes("network") || msg.includes("fetch")) {
+        return { code: "auth/network-error", message: error.message };
+    }
+    return { code: "auth/unknown", message: error.message };
 }
 
 export async function obtenerPerfilUsuario(uid) {
