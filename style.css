@@ -606,6 +606,20 @@ body.modal-open {
 
 .toast.fade-out { animation: toastOut .2s ease forwards; }
 
+/* Botón "Actualizar" del aviso de nueva versión (ver toast-update en app.js) */
+.toast-update-btn {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 999px;
+    background: var(--amber);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.toast-update-btn:hover { background: var(--amber-dark); color: #fff; }
+
 @keyframes toastIn { from { opacity: 0; transform: translateY(-10px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes toastOut { to { opacity: 0; transform: translateY(-8px) scale(.97); } }
 
