@@ -50,8 +50,14 @@ const productosModificados = new Map();
 // -------------------------------
 const TIEMPO_MINIMO_LOADER = 900;
 
-function conTiempoMinimo(desde, callback) {
-    const restante = TIEMPO_MINIMO_LOADER - (Date.now() - desde);
+// Un poco más largo que el anterior: es el tiempo mínimo que se queda
+// "Ingresando…" el botón de login antes de mostrar el resultado (ver
+// loginForm más abajo). Así el loader del botón se nota como un paso propio
+// en vez de un parpadeo, tanto si el login sale bien como si sale mal.
+const TIEMPO_MINIMO_LOGIN = 1400;
+
+function conTiempoMinimo(desde, callback, minimo = TIEMPO_MINIMO_LOADER) {
+    const restante = minimo - (Date.now() - desde);
     if (restante > 0) {
         setTimeout(callback, restante);
     } else {
@@ -209,15 +215,22 @@ const loginScreen = document.getElementById('loginScreen');
 const appRoot = document.getElementById('appRoot');
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
+const loginErrorText = document.getElementById('loginErrorText');
 const loginSubmitBtn = document.getElementById('loginSubmitBtn');
 const bootLoader = document.getElementById('bootLoader');
 const bootLoaderLabel = document.getElementById('bootLoaderLabel');
 
 // Momento en que arrancó el boot loader — se reinicia cada vez que se
-// vuelve a mostrar (al cargar la página, y también al tocar "Ingresar"),
-// para que quede visible el tiempo mínimo aunque Firebase resuelva casi al
-// instante.
+// vuelve a mostrar (solo pasa al tocar "Ingresar" y que las credenciales
+// resulten correctas), para que quede visible el tiempo mínimo aunque
+// Supabase resuelva casi al instante.
 let inicioBootLoader = Date.now();
+
+// True entre que el usuario toca "Ingresar" y que la sesión queda resuelta
+// (para bien o para mal). Sirve para que onAuthChange sepa que, si el login
+// salió bien, tiene que tapar la pantalla con el boot loader ANTES de
+// revelar la app — ver el comentario grande en onAuthChange más abajo.
+let loginManualEnCurso = false;
 
 function mostrarBootLoader(etiqueta) {
     inicioBootLoader = Date.now();
@@ -231,33 +244,74 @@ function ocultarBootLoader() {
     });
 }
 
+// Traduce el código de error que tira loginConUsuario (ver supabase.js) a un
+// mensaje concreto y accionable para mostrar debajo del formulario.
+function mensajeErrorLogin(err) {
+    switch (err?.code) {
+        case 'auth/user-not-found':
+            return 'No encontramos ese usuario. Revisá que esté bien escrito.';
+        case 'auth/invalid-credential':
+            return 'Usuario o contraseña incorrectos. Revisá los datos e intentá de nuevo.';
+        case 'auth/email-not-confirmed':
+            return 'Tu cuenta todavía no fue activada. Contactate por WhatsApp para activarla.';
+        case 'auth/too-many-requests':
+            return 'Hiciste demasiados intentos seguidos. Esperá un minuto y volvé a probar.';
+        case 'auth/network-error':
+            return 'No hay conexión a internet. Revisá tu conexión e intentá de nuevo.';
+        default:
+            return 'No pudimos iniciar sesión. Intentá de nuevo o contactate si el problema sigue.';
+    }
+}
+
 loginForm.addEventListener('submit', async function (e) {
     e.preventDefault();
     const usuario = document.getElementById('loginUsuario').value.trim();
     const password = document.getElementById('loginPassword').value;
 
     loginError.classList.remove('show');
+
+    // Chequeo rápido antes de arrancar: si el dispositivo está sin conexión,
+    // ni vale la pena disparar el request (y el mensaje genérico de fetch
+    // fallido es peor que decir directamente "sin conexión").
+    if (!navigator.onLine) {
+        loginErrorText.textContent = mensajeErrorLogin({ code: 'auth/network-error' });
+        loginError.classList.add('show');
+        return;
+    }
+
     loginSubmitBtn.disabled = true;
     loginSubmitBtn.innerHTML = '<span class="spinner"></span>Ingresando…';
 
-    // Tapamos toda la pantalla con el boot loader mientras se valida el
-    // login y arranca la carga de la sesión (catálogo, inventario). Si el
-    // login sale bien, onAuthChange lo va a ocultar solo una vez que la
-    // app esté lista para mostrarse; si falla, lo ocultamos nosotros mismos
-    // más abajo, porque en ese caso onAuthChange no se dispara.
-    mostrarBootLoader('Ingresando…');
+    // El botón hace de "splash" corto mientras se valida el login. El
+    // tiempo mínimo (TIEMPO_MINIMO_LOGIN) solo se aplica si las credenciales
+    // están MAL: así el loader del botón se nota como un paso propio antes
+    // del aviso de error, en vez de un parpadeo. Si están BIEN, en cambio,
+    // no hace falta demorar nada acá: es onAuthChange quien tapa la pantalla
+    // con el boot loader grande y muestra la app (ver más abajo). No lo
+    // hacemos desde acá porque Supabase puede disparar el evento de sesión
+    // ANTES de que este await termine de resolver (loginConUsuario todavía
+    // tiene trabajo async pendiente después de validar user/password), y si
+    // ese evento nos gana la carrera, la app quedaría visible un instante
+    // sin loader encima.
+    loginManualEnCurso = true;
+    const inicioLogin = Date.now();
 
     try {
         await loginConUsuario(usuario, password);
-        // onAuthChange se encarga de mostrar la app y ocultar el boot loader
-    } catch (err) {
-        console.error(err);
-        loginError.textContent = 'No pudimos iniciar sesión. Revisá el usuario y la contraseña.';
-        loginError.classList.add('show');
-        ocultarBootLoader();
-    } finally {
+        // Usuario y contraseña correctos: no hay más nada que hacer acá.
+        // onAuthChange ya se encarga (o se está por encargar) de tapar la
+        // pantalla y mostrar la app.
         loginSubmitBtn.disabled = false;
         loginSubmitBtn.textContent = 'Ingresar';
+    } catch (err) {
+        loginManualEnCurso = false;
+        console.error(err);
+        conTiempoMinimo(inicioLogin, () => {
+            loginErrorText.textContent = mensajeErrorLogin(err);
+            loginError.classList.add('show');
+            loginSubmitBtn.disabled = false;
+            loginSubmitBtn.textContent = 'Ingresar';
+        }, TIEMPO_MINIMO_LOGIN);
     }
 });
 
@@ -352,6 +406,21 @@ function mostrarSaludoUsuario(nombre, logoUrl) {
 onAuthChange(async function (userSupabase) {
     const user = userSupabase ? { ...userSupabase, uid: userSupabase.id } : null;
     currentUser = user;
+
+    // Si este evento llega mientras hay un login manual en curso (el
+    // usuario tocó "Ingresar" y las credenciales resultaron correctas),
+    // tapamos la pantalla con el boot loader grande ANTES de tocar
+    // loginScreen/appRoot. No podemos confiar en que ya esté visible: este
+    // evento puede dispararse mientras loginConUsuario todavía está
+    // resolviendo trabajo interno, es decir, antes de que el código de más
+    // arriba (loginForm) llegue a ejecutarse. Mostrándolo acá, que es el
+    // único lugar que SIEMPRE corre antes de revelar la app, garantizamos
+    // el orden correcto sin importar esa carrera: loader del botón ->
+    // splash -> web.
+    if (user && loginManualEnCurso) {
+        mostrarBootLoader('Ingresando…');
+    }
+    loginManualEnCurso = false;
 
     // Ya sabemos si hay sesión o no: se acabó la incertidumbre que
     // justificaba el boot loader, así que lo ocultamos (sea cual sea el
