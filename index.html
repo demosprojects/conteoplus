@@ -120,6 +120,73 @@
     });
 })();
 
+// QR de ayuda para el login: en celular, los links "¿No podés ingresar?" y
+// "¿Olvidaste tu clave?" siguen abriendo WhatsApp directo, como siempre. En
+// PC (pointer: fine, mismo criterio que el foco automático de acá abajo)
+// los interceptamos y mostramos un modal con un QR: la idea es que la
+// persona que está frente a la compu lo escanee con el celular y ahí sí se
+// le abra WhatsApp con el mensaje ya escrito, sin depender de que tenga
+// WhatsApp Web logueado en esa PC.
+// OJO: el modal #loginQrModal está más abajo en este mismo HTML (después
+// de todo el bloque de la app), así que no existe todavía en el momento en
+// que este <script> se ejecuta. Por eso todo esto va adentro de un
+// DOMContentLoaded: recién ahí el navegador ya parseó el documento entero y
+// los getElementById de abajo encuentran los elementos de verdad. Sin esto,
+// el chequeo de "!modal" da true, la función corta con return, no se
+// engancha ningún click, y los links terminan haciendo lo de siempre
+// (abrir la pestaña de WhatsApp derecho).
+document.addEventListener('DOMContentLoaded', function () {
+    var links = document.querySelectorAll('.login-support .login-support-link');
+    var modal = document.getElementById('loginQrModal');
+    var qrBox = document.getElementById('loginQrCode');
+    var cerrarBtn = document.getElementById('loginQrCerrarX');
+    if (!links.length || !modal || !qrBox || !cerrarBtn) {
+        console.warn('[QR ayuda] No se enganchó: falta algún elemento en el HTML (¿archivo viejo en caché?)', { links: links.length, modal: !!modal, qrBox: !!qrBox, cerrarBtn: !!cerrarBtn });
+        return;
+    }
+    if (!window.matchMedia('(pointer: fine)').matches) {
+        console.info('[QR ayuda] Dispositivo detectado como mobile/touch, se deja el link directo a WhatsApp.');
+        return; // en mobile no tocamos nada, va directo a la app
+    }
+
+    var qrInstance = null;
+
+    function abrirQr(url) {
+        qrBox.innerHTML = '';
+        if (window.QRCode) {
+            qrInstance = new QRCode(qrBox, {
+                text: url,
+                width: 200,
+                height: 200,
+                colorDark: '#12161c',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        } else {
+            // Si por algún motivo no cargó la librería del QR, no dejamos a
+            // la persona con el modal vacío: al menos le avisamos qué pasó.
+            qrBox.textContent = 'No se pudo generar el QR. Recargá la página e intentá de nuevo.';
+        }
+        modal.classList.add('open');
+    }
+
+    function cerrarQr() {
+        modal.classList.remove('open');
+    }
+
+    links.forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            abrirQr(link.href);
+        });
+    });
+
+    cerrarBtn.addEventListener('click', cerrarQr);
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) cerrarQr();
+    });
+});
+
 // Foco automático en el campo de usuario, pero solo en desktop: en mobile
 // dispara el teclado apenas carga la pantalla y tapa media pantalla antes
 // de que el usuario llegue a ver el formulario completo.
@@ -500,10 +567,30 @@
     </div>
 </div>
 
+<!-- QR de ayuda para el login: en PC, en vez de mandar a WhatsApp Web (que
+     casi nunca tiene la sesión iniciada), muestra un QR para escanear con
+     el celular y que se abra WhatsApp ahí directo, con el mensaje ya
+     armado. En mobile no hace falta, así que ahí los links siguen yendo
+     directo a WhatsApp como antes (ver script más abajo). -->
+<div class="modal-overlay modal-overlay--login-qr" id="loginQrModal">
+    <div class="modal modal--qr">
+        <button class="modal-close" id="loginQrCerrarX" type="button" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+
+        <span class="eyebrow">Ayuda por WhatsApp</span>
+        <h3>Escaneá con tu celular</h3>
+        <p class="qr-modal-texto">Abrí la cámara de tu celular y apuntá al código. Se va a abrir WhatsApp ya con el mensaje escrito.</p>
+
+        <div class="qr-modal-code" id="loginQrCode"></div>
+    </div>
+</div>
+
 <!-- Toasts -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
