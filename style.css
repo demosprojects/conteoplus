@@ -413,7 +413,16 @@ body.modal-open {
 .btn--ghost { background: transparent; border: 1.5px solid var(--line); color: var(--ink); }
 .btn--ghost:hover { border-color: var(--ink); }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
-.btn:disabled:hover { background-color: inherit; }
+/* Antes esto era "background-color: inherit", que tomaba el fondo del
+   contenedor (blanco) en vez de mantener el color propio del botón. Por
+   eso un botón disabled (ej. "Ingresando…" mientras carga el login) se
+   veía blanco al pasarle el cursor por encima. Ahora cada variante
+   mantiene su mismo color de fondo (ya atenuado por la opacity de arriba)
+   tanto en reposo como en hover mientras está disabled. */
+.btn--primary:disabled:hover { background: var(--ink); }
+.btn--amber:disabled:hover { background: var(--amber); color: #201400; }
+.btn--success:disabled:hover { background: var(--success); }
+.btn--ghost:disabled:hover { background: transparent; border-color: var(--line); }
 
 /* Log table */
 .log-card { height: 100%; }
@@ -865,6 +874,53 @@ body.modal-open {
     text-transform: uppercase;
     color: var(--amber-dark);
     margin-bottom: 14px;
+}
+
+/* Modal de QR de ayuda (login, solo desktop): mismo look que .modal--guia
+   (centrado, con X arriba a la derecha), pero con el recuadro del QR y el
+   link de respaldo debajo. */
+.modal-overlay--login-qr { z-index: 550; } /* por encima del .login-overlay (500) */
+
+.modal--qr {
+    max-width: 340px;
+    text-align: center;
+    position: relative;
+    padding-top: 34px;
+}
+
+.modal--qr h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 19px;
+    margin: 2px 0 8px;
+    color: var(--ink);
+}
+
+.qr-modal-texto {
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+}
+
+.qr-modal-code {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 216px;
+    height: 216px;
+    margin: 0 auto 18px;
+    padding: 8px;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+}
+.qr-modal-code img,
+.qr-modal-code canvas { border-radius: 4px; }
+
+.login-qr-fallback {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
 }
 
 .guia-icon {
