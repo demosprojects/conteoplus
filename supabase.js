@@ -301,6 +301,20 @@ export async function actualizarStockProducto(uid, producto) {
     }
 }
 
+// Borra varios productos por código en una sola consulta (usado al importar
+// el .txt de "novedades" diario del POS, que puede traer productos dados de
+// baja ese día). Devuelve la cantidad de filas realmente borradas.
+export async function eliminarProductosPorCodigos(uid, codigos) {
+    if (!codigos || codigos.length === 0) return 0;
+    const { error, count } = await supabase
+        .from("productos")
+        .delete({ count: "exact" })
+        .eq("usuario", uid)
+        .in("codigo", codigos);
+    if (error) throw error;
+    return count ?? 0;
+}
+
 export async function borrarCatalogoCompleto(uid) {
     const { count, error } = await supabase
         .from("productos")
