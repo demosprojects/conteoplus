@@ -8,6 +8,7 @@ import {
     importarCatalogo,
     crearProducto,
     eliminarProducto,
+    eliminarProductosPorCodigos,
     actualizarStockProducto,
     asegurarInventarioActual,
     abrirInventario,
@@ -601,8 +602,7 @@ function mostrarCatalogoListo() {
     dbStatus.classList.add('is-ready');
 
     document.getElementById('catalogUploadPanel').style.display = 'none';
-    document.getElementById('catalogStatus').style.display = 'flex';
-    document.getElementById('catalogCount').textContent = baseDeDatos.length;
+    document.getElementById('catalogSyncPanel').style.display = '';
 
     actualizarEstadoEscaneo();
     renderTablaProductos();
@@ -616,7 +616,7 @@ function mostrarCargaInicial() {
     dbStatus.classList.remove('is-ready');
 
     document.getElementById('catalogUploadPanel').style.display = '';
-    document.getElementById('catalogStatus').style.display = 'none';
+    document.getElementById('catalogSyncPanel').style.display = 'none';
     productsTableBody.innerHTML = '<div class="empty-row">Subí el catálogo para ver los productos</div>';
 
     deshabilitarEscaneo();
@@ -634,7 +634,6 @@ function mostrarCargandoCatalogo() {
     dbStatus.innerHTML = '<span class="spinner spinner--amber"></span>Cargando catálogo…';
 
     document.getElementById('catalogUploadPanel').style.display = 'none';
-    document.getElementById('catalogStatus').style.display = 'none';
 
     deshabilitarEscaneo();
     renderSkeletonProductos();
@@ -786,6 +785,126 @@ async function parseTxtYSubir(text) {
     }
 }
 
+document.getElementById('fileInputNovedades').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    e.target.value = ''; // permite volver a subir un archivo con el mismo nombre otro día
+    if (!file || !currentUser) return;
+
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+        parseNovedadesYAplicar(ev.target.result);
+    };
+    reader.onerror = function () {
+        showToast('No se pudo leer el archivo.', 'error');
+    };
+    reader.readAsText(file, 'ISO-8859-1');
+});
+
+// Parsea el .txt de "novedades" diarias del POS: a diferencia del .txt de
+// carga inicial (que trae todo el catálogo con stock), este archivo solo
+// avisa altas/bajas/cambios de nombre, con formato:
+//   Tipo;Fecha;Hora;CodigoArt;Artículo;
+// donde Tipo es N (nuevo), M (modificado) o B (borrado).
+//
+// Como este archivo NO trae stock, nunca tocamos esa columna acá: si lo
+// hiciéramos, pisaríamos el conteo que ya se hizo en la app. Si el código es
+// nuevo en la cuenta arranca con stock 0 (todavía no se contó).
+//
+// Si el mismo código aparece más de una vez en el archivo (ej. se dio de
+// alta y de baja el mismo día), gana la ÚLTIMA fila, asumiendo que el POS
+// exporta las filas en orden cronológico.
+function parseNovedadesTxt(text) {
+    const lines = text.split('\n');
+    const porCodigo = new Map(); // codigoArt -> { tipo, articulo }
+    let invalidas = 0;
+
+    lines.forEach(line => {
+        if (line.trim() === '') return;
+        const cols = line.split(';');
+        if (cols.length < 5) { invalidas++; return; }
+
+        const tipo = (cols[0] || '').trim().toUpperCase();
+        const codigoArt = (cols[3] || '').trim();
+        const articulo = (cols[4] || '').trim();
+
+        if (!['N', 'M', 'B'].includes(tipo) || codigoArt === '') {
+            invalidas++;
+            return;
+        }
+
+        porCodigo.set(codigoArt, { tipo, articulo });
+    });
+
+    const altas = [];
+    const bajas = [];
+    porCodigo.forEach((info, codigoArt) => {
+        if (info.tipo === 'B') {
+            bajas.push(codigoArt);
+        } else {
+            altas.push({ codigoArt, articulo: info.articulo });
+        }
+    });
+
+    return { altas, bajas, invalidas };
+}
+
+async function parseNovedadesYAplicar(text) {
+    const { altas, bajas, invalidas } = parseNovedadesTxt(text);
+
+    if (altas.length === 0 && bajas.length === 0) {
+        showToast('El archivo no tiene novedades con el formato esperado.', 'error');
+        return;
+    }
+
+    // Completa cada alta con el stock/unidades que YA tiene el producto en
+    // el catálogo, para no pisarlo (este archivo no trae esos datos). Si el
+    // código todavía no existe en la cuenta, es un producto nuevo: arranca
+    // en stock 0.
+    const productosParaSubir = altas.map(alta => {
+        const existente = baseDeDatos.find(p => p.codigoArt === alta.codigoArt);
+        return {
+            codigoArt: alta.codigoArt,
+            articulo: alta.articulo || existente?.articulo || alta.codigoArt,
+            unidades: existente?.unidades ?? 'unidad',
+            stock_unidad: existente?.stock ?? 0
+        };
+    });
+
+    const nuevos = productosParaSubir.filter(p => !baseDeDatos.some(b => b.codigoArt === p.codigoArt)).length;
+    const modificados = productosParaSubir.length - nuevos;
+
+    let mensaje = `Este archivo trae ${nuevos} producto(s) nuevo(s), ${modificados} modificado(s) y ${bajas.length} dado(s) de baja.`;
+    if (invalidas > 0) {
+        mensaje += `\n\n${invalidas} línea(s) no tenían el formato esperado y se van a ignorar.`;
+    }
+    mensaje += '\n\n¿Aplicar estos cambios al catálogo?';
+
+    const confirmado = await mostrarConfirm({
+        titulo: 'Actualizar catálogo con novedades',
+        mensaje,
+        textoConfirmar: 'Aplicar cambios',
+        textoCancelar: 'Cancelar'
+    });
+    if (!confirmado) return;
+
+    showToast('Actualizando catálogo…', 'info');
+
+    try {
+        if (productosParaSubir.length > 0) {
+            await importarCatalogo(currentUser.uid, productosParaSubir);
+        }
+        if (bajas.length > 0) {
+            await eliminarProductosPorCodigos(currentUser.uid, bajas);
+        }
+        // No hace falta tocar baseDeDatos a mano: escucharCatalogo() (Realtime)
+        // va a traer los cambios solo, en todos los dispositivos conectados.
+        showToast(`Catálogo actualizado: ${nuevos} nuevo(s), ${modificados} modificado(s), ${bajas.length} de baja.`, 'success');
+    } catch (err) {
+        console.error(err);
+        showToast('No se pudo actualizar el catálogo con las novedades.', 'error');
+    }
+}
+
 // -------------------------------
 // 2. Inventario del día (colección "inventarios")
 // -------------------------------
@@ -913,7 +1032,6 @@ async function eliminarModificacion(codigo, fila) {
             baseDeDatos = baseDeDatos.filter(p => p.codigoArt !== codigo);
             productosNuevosEnEsteConteo.delete(codigo);
             await eliminarProducto(currentUser.uid, codigo);
-            document.getElementById('catalogCount').textContent = baseDeDatos.length;
             document.getElementById('dbStatus').innerText = `Productos cargados · ${baseDeDatos.length} productos`;
             renderTablaProductos();
         } else if (producto) {
@@ -1537,7 +1655,6 @@ async function eliminarProductoDelCatalogo(codigo) {
         productosModificados.delete(codigo);
         stockOriginalPorCodigo.delete(codigo);
         productosNuevosEnEsteConteo.delete(codigo);
-        document.getElementById('catalogCount').textContent = baseDeDatos.length;
         document.getElementById('dbStatus').innerText = `Productos cargados · ${baseDeDatos.length} productos`;
         renderTablaProductos();
         actualizarBadgeConteo();
@@ -2082,7 +2199,6 @@ document.getElementById('npConfirm').addEventListener('click', async () => {
 
     try {
         await crearProducto(currentUser.uid, nuevoProducto);
-        document.getElementById('catalogCount').textContent = baseDeDatos.length;
         document.getElementById('dbStatus').innerText = `Productos cargados · ${baseDeDatos.length} productos`;
         await sincronizarItemInventario(nuevoProducto);
     } catch (err) {
