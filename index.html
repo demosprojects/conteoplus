@@ -317,17 +317,18 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="card log-card" id="productsCard">
                 <span class="card__step">Catálogo</span>
                 <h2>Todos los productos</h2>
-                <p class="hint">Buscá por nombre o código. Tocá el nombre de un producto para corregir su stock.</p>
-
-                <div class="catalog-status" id="catalogStatus" style="display:none;">
-                    <span><strong id="catalogCount">0</strong> productos cargados en tu cuenta</span>
-                </div>
 
                 <div id="catalogUploadPanel">
                     <p class="hint">Subí el .txt con el catálogo inicial (paso único: después queda guardado en tu cuenta y los productos nuevos se agregan solos al escanear).</p>
                     <input type="file" id="fileInput" accept=".txt" class="file-btn">
                 </div>
 
+                <div id="catalogSyncPanel" style="display:none;">
+                    <p class="hint">Subir productos nuevos, borrados o actualizados que hayas cargado en el sistema de ventas. </p>
+                    <input type="file" id="fileInputNovedades" accept=".txt" class="file-btn">
+                </div>
+
+                <p class="hint">Buscá por nombre o código. Tocá el nombre de un producto para corregir su stock.</p>
                 <input type="text" id="productsSearchInput" class="manual-input" placeholder="Buscar por nombre o código…" autocomplete="off" style="margin-bottom:12px;">
                 <div class="products-list-wrap">
                     <div id="productsTableBody" class="products-list">
