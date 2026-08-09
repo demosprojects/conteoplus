@@ -165,7 +165,7 @@ function showToast(message, type = 'info') {
 function generarContenidoTxt(items) {
     let contenido = '';
     items.forEach(it => {
-        contenido += `${it.registrado || ''};${it.hora || ''};${it.codigo};${it.descripcion};${it.unidades};${it.stock};\n`;
+        contenido += `${it.registrado || ''};${it.hora || ''};${it.codigo};${it.descripcion};${it.unidades};${it.stock}\n`;
     });
     return contenido;
 }
@@ -1545,7 +1545,6 @@ function filaHtml(producto) {
             <span class="product-row-name">${escapeHtml(producto.articulo)}</span>
             <span class="product-row-code">${escapeHtml(producto.codigoArt)}</span>
         </div>
-        <div class="product-row-stock">${escapeHtml(producto.stock_unidad)}</div>
         <button type="button" class="row-delete-btn" data-accion="eliminar-producto" title="Eliminar para siempre">✕</button>
     </div>`;
 }
@@ -1610,6 +1609,8 @@ productsSearchInput.addEventListener('input', function () {
     renderTablaProductosDebounced();
 });
 
+// Desde "Mis productos" solo se puede eliminar un producto del catálogo.
+// El stock y su edición viven exclusivamente en "Modificaciones" (el conteo).
 productsTableBody.addEventListener('click', async function (e) {
     const fila = e.target.closest('.product-row[data-codigo]');
     if (!fila) return;
@@ -1619,19 +1620,6 @@ productsTableBody.addEventListener('click', async function (e) {
         await eliminarProductoDelCatalogo(codigo);
         return;
     }
-
-    // La edición de stock desde acá escribe en el inventario del día actual
-    // (sincronizarItemInventario). Si el día está cerrado, ese cambio queda
-    // "flotando" en un inventario cerrado y se pierde sin dejar rastro apenas
-    // se abre el próximo día (abrirInventario resetea los items). Por eso, si
-    // no hay un día abierto, ni siquiera dejamos abrir el modal.
-    if (!inventarioActual || inventarioActual.estado !== 'abierto') {
-        showToast('Para editar el stock de un producto primero tenés que abrir el conteo.', 'info');
-        return;
-    }
-
-    const producto = baseDeDatos.find(p => p.codigoArt === codigo);
-    if (producto) abrirModalCantidad(producto, 'editar');
 });
 
 // Borra un producto del catálogo para siempre, desde la pestaña "Productos".
@@ -2412,8 +2400,8 @@ function renderHistorial(resultados) {
         wrapper.querySelector('.hist-descargar').addEventListener('click', function (e) {
             e.stopPropagation();
             const itemsCanonicos = items.map(it => ({
-                registrado: '',
-                hora: '',
+                registrado: it.registrado || '',
+                hora: it.hora || '',
                 codigo: it.codigo,
                 descripcion: it.descripcion,
                 unidades: it.unidades,
