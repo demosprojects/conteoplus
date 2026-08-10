@@ -165,7 +165,7 @@ function showToast(message, type = 'info') {
 function generarContenidoTxt(items) {
     let contenido = '';
     items.forEach(it => {
-        contenido += `${it.registrado || ''};${it.hora || ''};${it.codigo};${it.descripcion};${it.unidades};${it.stock}\n`;
+        contenido += `${it.registrado || ''};${it.hora || ''};${it.codigo};${it.descripcion};${it.unidades};${it.stock};\n`;
     });
     return contenido;
 }
